@@ -12,6 +12,7 @@ This project investigates the impact of climate change on bumblebee latitudinal 
 - [Analysis Workflow](#analysis-workflow)
 - [Results](#results)
 - [References](#references)
+- [Attribution](#attribution)
 
 ## Introduction
 Understanding how climate change affects bumblebee populations is critical for biodiversity conservation. By studying latitudinal distribution and temperature data, this project examines how temperature shifts impact the distribution and genetic diversity of bumblebee populations across Canada and USA.
@@ -55,3 +56,7 @@ Understanding how climate change affects bumblebee populations is critical for b
 ## References
 - [BOLD Systems](http://www.boldsystems.org/)
 - Climate data source: [NASA Climate Change](https://climate.nasa.gov/vital-signs/global-temperature/?intent=121)
+
+## Attribution
+- **Primary Author**: Isha Baxi for developing Bumblebee Latitude Analysis 
+- **Secondary Author**: [Vivian Phung](https://github.com/vivianp17) for improving data efficiency for species richness, expanding on filtering steps, creating an additional figure (Bubble plot for species richness and geographically) and other minor changes. 
