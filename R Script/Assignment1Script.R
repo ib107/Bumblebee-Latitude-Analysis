@@ -23,7 +23,7 @@ library(cowplot)  # For dual-axis plotting
 ## ---- Load NASA Temp Data and Clean -----
 
 # Read and Load NASA Average Temperature Data
-nasa_data <- read.csv("nasa_data.csv", header = TRUE, stringsAsFactors = FALSE)
+nasa_data <- read.csv("../Data/nasa_data.csv", header = TRUE, stringsAsFactors = FALSE)
 
 # Convert the data frame into proper columns
 nasa_data <- as.data.frame(nasa_data)
@@ -42,7 +42,9 @@ nasa_data <- nasa_data[-1, ] # Remove first row
 
 # Extracting Bombus data from Canada + USA in TSV data format
 # Extracted data in TSV is also saved in /data folder 
-BOLDdata <- read_tsv(file = "http://www.boldsystems.org/index.php/API_Public/specimen?taxon=Bombus&geo=Canada,United%20States&format=tsv")
+BOLDdata <- read_tsv(file = "http://v4.boldsystems.org/index.php/API_Public/specimen?taxon=Bombus&geo=Canada,United%20States&format=tsv") 
+
+# Note: BOLD is currently transitioning from version 4 to version 5. To maintain compatibility with RStudio, the link was adjusted to access the previous version. Future updates to the BOLD system may require further link adjustments to ensure continued access.
 
 BOLDdata_filtered <- BOLDdata %>% 
   filter(country == "Canada" | country == "United States")
@@ -55,7 +57,7 @@ bombus <- BOLDdata_filtered %>% # Extracting BOLDdata for new bombus data frame
   mutate(across(where(is.character), ~ na_if(., " "))) %>% # Changing any empty cells in bombus to NA
   filter(!is.na(processid)& !is.na(species_name) & !is.na(lat) & !is.na(lon) & !is.na(province_state)) # Removing NA cells
 
-# Summarize Key Variables and Check for Data Errors 
+# --- Summarize Key Variables and Check for Data Errors ---
 
 # Summarize Numerical Variables 
 
@@ -85,11 +87,18 @@ location <- bombus %>%
 
 sum(location$n) # Check to ensure that n = 3432, for each specimen in dataset being classified into location
 
+
+# Filter out latitudes and longitudes that are out of range
+bombus <- bombus %>%
+  filter(lat >= -90 & lat <= 90) %>%  # Latitude should be between -90 and 90
+  filter(lon >= -180 & lon <= 180)  # Longitude should be between -180 and 180
+#maybe count how many outliers are taken out.
+
 # Boxplots for outliers of numerical variables 
 boxplot(bombus$lat, main = "Latitude")
 boxplot(bombus$lon, main = "Longitude")
 
-# Plot Histograms
+# Plot Histograms 
 ggplot(bombus, aes(x = species_name)) +
   geom_bar(fill = "skyblue", color = "black") +
   labs(title = "Histogram of Species Types",
@@ -115,8 +124,10 @@ latitude_group <- cut(bombus$lat,
                       include.lowest = TRUE)
 bombus$latitude_group <- latitude_group # Add coloumn to bombus data frame
 
-# Classify each specimen into species and by latitude groups
-species_richness <- table(bombus$latitude_group, bombus$species_name)
+# Using dplyr's count to improve efficiency in calculating species richness by latitude group
+species_richness1 <- bombus %>%
+  count(latitude_group, species_name) %>% # Count occurrences of each species in latitude groups
+  spread(key = species_name, value = n, fill = 0) # Convert counts into a wide format
 
 # Extract year from last 2 digits of processid (Assuming that the year was when the specimen was found)
 year <- str_extract(bombus$processid, "\\d{2}$")
@@ -173,30 +184,33 @@ print(spearman_corr)
 
 ## ---- Visualizations ----
 
-### PLOT 1: Species Richness Scatter Plot Per Latitude Gradient
+### PLOT 1: Species Richness Bubble Plot
 
-# Calculate species richness per latitude and species
+# Calculate species richness per latitude, longitude, and species
 species_richness_data <- bombus %>%
-  group_by(lat, species_name) %>% 
+  group_by(lat,lon,species_name) %>% 
   summarise(SpeciesRichness = n(), .groups = 'drop')
 
-# Create the scatter plot with ggplot2
-scatterplot <- ggplot(data = species_richness_data, aes(x = lat, y = SpeciesRichness, color = species_name, text = species_name)) +
-  geom_point(size = 3, alpha = 0.7) +
-  labs(title = "Species Richness vs Latitude",
-       subtitle = "Distribution of Bombus Species Across Latitudes",
-       x = "Latitude",
-       y = "Species Richness") +
-  theme_minimal() +
-  theme(legend.position = "none")  # Removes the legend
-
-plot_1 <- ggplotly(scatterplot, tooltip = "text") # Convert the ggplot to a plotly object
-print(plot_1)
-
-### PLOT 2: Species Density Heat Map
-
+#Getting world map
 world <- st_as_sf(map("world", plot = FALSE, fill = TRUE))
 
+# Create the bubble plot 
+bubbleplot <- ggplot(data = species_richness_data) +
+  geom_sf(data = world, fill = "grey90", color = "white") +
+  geom_point(aes(x = lon, y = lat, size = SpeciesRichness, color = species_name), alpha = 0.8) +
+  scale_size(range = c(2, 10), name = "Species Richness") +  # Adjust bubble size range
+  scale_color_viridis_d(name = "Species") +        # Adjust color scale
+  coord_sf(xlim = c(-150, -50), ylim = c(20, 85), expand = FALSE) + 
+  labs(title = "Bubble Map of Bee Species Richness by Location",
+       subtitle = "Point size and color indicate richness level",
+       x = "Longitude",
+       y = "Latitude") +
+  theme_minimal() +
+  theme(legend.position = "none")
+new_plot <- ggplotly(bubbleplot, tooltip = c("x", "y", "size","colour")) # converting ggplot to plotly object
+print(new_plot) # Display New Plot
+
+### PLOT 2: Species Density Heat Map
 species_location_data <- bombus %>%
   filter(!is.na(lat) & !is.na(lon) & !is.na(province_state))  # Filter out missing values
 
@@ -221,7 +235,7 @@ plot_2 <- ggplot() +
   ) +
   
   # Add points for species locations
-  geom_point(data = species_location_data, aes(x = lon, y = lat), size = 3, alpha = 0.7) +
+  geom_point(data = species_location_data, aes(x = lon, y = lat), size = 0.5, alpha = 0.7) +
   
   # Customize the labels and theme
   labs(
@@ -242,7 +256,7 @@ plot_2 <- ggplot() +
   # Improving overall aesthetics of map
   theme_minimal() +
   theme(
-    plot.title = element_text(size = 16, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold", hjust=0.5),
     plot.subtitle = element_text(size = 12, face = "italic"),
     axis.title.x = element_text(size = 10),
     axis.title.y = element_text(size = 10),
@@ -285,6 +299,11 @@ title <- ggdraw() + draw_label("Species Richness and Temperature Change Over Tim
 # Add shared x-axis
 x_axis <- ggdraw() + draw_label("Year", size = 12)
 
-# Final plot with title and shared x-axis
-plot_3 <- plot_grid(title, combined_plot, x_axis, ncol = 1, rel_heights = c(0.1, 1, 0.05))
+# Adding a annotation to Figure 3
+annotation_text <- "Note: Trends in species richness may reflect sampling effort changes over time."
+annotation<- ggdraw() + 
+  draw_label(annotation_text, fontface = 'italic', size = 10, hjust = 0.5, color = "gray40")
+
+# Final plot with annotation
+plot_3 <- plot_grid(title, combined_plot, x_axis, annotation, ncol = 1, rel_heights = c(0.1, 1, 0.05, 0.1))
 print(plot_3)
