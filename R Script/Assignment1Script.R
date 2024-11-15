@@ -90,9 +90,8 @@ sum(location$n) # Check to ensure that n = 3432, for each specimen in dataset be
 
 # Filter out latitudes and longitudes that are out of range
 bombus <- bombus %>%
-  filter(lat >= -90 & lat <= 90) %>%  # Latitude should be between -90 and 90
-  filter(lon >= -180 & lon <= 180)  # Longitude should be between -180 and 180
-#maybe count how many outliers are taken out.
+  filter(lat >= 24 & lat <= 83) %>%  # North American latitudes range from roughly 24 to 83 
+  filter(lon >= -172 & lon <= -52)   # North American longitudes range from roughly -172 to -52
 
 # Boxplots for outliers of numerical variables 
 boxplot(bombus$lat, main = "Latitude")
